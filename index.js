@@ -1,52 +1,61 @@
 const express = require('express');
-const fs = require('fs');
 const serverless = require('serverless-http');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
-
-let data = JSON.parse(fs.readFileSync('students.json', 'utf-8'));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// ✅ Read students.json file (read-only)
+let data = [];
+try {
+  const filePath = path.join(__dirname, 'students.json');
+  data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+} catch (err) {
+  console.error('Error loading students.json:', err);
+  data = []; // fallback to empty array
+}
+
+// Get all students
 app.get('/', (req, res) => {
   res.json(data);
 });
 
+// Get one student by ID
 app.get('/:id', (req, res) => {
   const id = +req.params.id;
-  const stud = data.find((s) => s.id === id);
-  res.json(stud);
+  const student = data.find(s => s.id === id);
+  if (!student) return res.status(404).send('Student not found');
+  res.json(student);
 });
 
+// Add new student (memory only)
+app.post('/', (req, res) => {
+  const newStudent = req.body;
+  newStudent.id = Date.now(); // auto-generated ID
+  data.push(newStudent);
+  res.send('Student added (temporarily in memory)');
+});
+
+// Delete student by ID (memory only)
 app.delete('/:id', (req, res) => {
   const id = +req.params.id;
-  const index = data.findIndex((s) => s.id === id);
-  if (index === -1) {
-    return res.send('invalid id');
-  }
+  const index = data.findIndex(s => s.id === id);
+  if (index === -1) return res.status(404).send('Invalid ID');
   data.splice(index, 1);
-  fs.writeFileSync('students.json', JSON.stringify(data));
-  res.send('data deleted');
+  res.send('Student deleted (temporarily)');
 });
 
-app.post('/', (req, res) => {
-  const stud = req.body;
-  data.push(stud);
-  fs.writeFileSync('students.json', JSON.stringify(data));
-  res.send('data saved');
-});
-
+// Update student (memory only)
 app.patch('/:id', (req, res) => {
   const id = +req.params.id;
-  const update = req.body;
-  const stud = data.find((s) => s.id === id);
-  if (!stud) {
-    return res.json('invalid id');
-  }
-  Object.assign(stud, update);
-  fs.writeFileSync('students.json', JSON.stringify(data));
-  res.json('data updated');
+  const updates = req.body;
+  const student = data.find(s => s.id === id);
+  if (!student) return res.status(404).send('Invalid ID');
+  Object.assign(student, updates);
+  res.send('Student updated (temporarily)');
 });
 
 // ✅ Export for Vercel
