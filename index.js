@@ -1,69 +1,53 @@
-let express = require('express')
+const express = require('express');
+const fs = require('fs');
+const serverless = require('serverless-http');
 
-let  app= express()
-let fs = require('fs')
-let data = JSON.parse(fs.readFileSync('students.json','utf-8'))
+const app = express();
 
-app.get('/',(req,res)=>{
-    res.json(data)
-})
+let data = JSON.parse(fs.readFileSync('students.json', 'utf-8'));
 
-app.get('/:id',(req,res)=>{
-    let id= req.params.id
-    let stud = data.find((s)=>s.id===(+id))
-    res.json(stud)
-})
-app.delete('/:id',(req,res)=>{
-    let id= req.params.id
-    let Index = data.findIndex((s)=>s.id===(+id))
-    if(Index==-1)
-    {
-        res.send('invalid id')
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
-    }
-    else
-    {
-        data.splice(Index,1)
-        fs.writeFileSync('students.json',JSON.stringify(data))
-        res.send('data deleted')
-    }
+app.get('/', (req, res) => {
+  res.json(data);
+});
 
-})
-app.use(express.json())
-app.post('/',(req,res)=>{
+app.get('/:id', (req, res) => {
+  const id = +req.params.id;
+  const stud = data.find((s) => s.id === id);
+  res.json(stud);
+});
 
-    let stud=req.body
+app.delete('/:id', (req, res) => {
+  const id = +req.params.id;
+  const index = data.findIndex((s) => s.id === id);
+  if (index === -1) {
+    return res.send('invalid id');
+  }
+  data.splice(index, 1);
+  fs.writeFileSync('students.json', JSON.stringify(data));
+  res.send('data deleted');
+});
 
-    data.push(stud)
-    fs.writeFileSync('students.json',JSON.stringify(data))
-    res.send('data saved')
+app.post('/', (req, res) => {
+  const stud = req.body;
+  data.push(stud);
+  fs.writeFileSync('students.json', JSON.stringify(data));
+  res.send('data saved');
+});
 
+app.patch('/:id', (req, res) => {
+  const id = +req.params.id;
+  const update = req.body;
+  const stud = data.find((s) => s.id === id);
+  if (!stud) {
+    return res.json('invalid id');
+  }
+  Object.assign(stud, update);
+  fs.writeFileSync('students.json', JSON.stringify(data));
+  res.json('data updated');
+});
 
-})
-
-app.use(express.urlencoded({extended:false}))
-app.patch('/:id',(req,res)=>{
-
-    let id=+req.params.id
-    
-    let stud_post=req.body
-
-    let stud_json=data.find((s)=>s.id===(id))
-
-    if(stud_json==null)
-    {
-        res.json('invalide id')
-
-    }
-    Object.assign(stud_json,stud_post)
-    fs.writeFileSync('student.json',JSON.stringify(data))
-    res.json('data updated')
-
-
-
-
-
-
-
-})
-app.listen(1000)    
+// ✅ Export for Vercel
+module.exports.handler = serverless(app);
